@@ -20,8 +20,8 @@
         </div>
         <script>
             const context = new AudioContext();
-            const delay = (ms) => () => new Promise((resolve) => 
-                        setTimeout(() => resolve(), ms));
+            const delay = (ms) => (val) => new Promise((resolve) => 
+                        setTimeout(() => resolve(val), ms));
 
             window.addEventListener('DOMContentLoaded', () => {
                 const hash = window.location.hash.slice(1);
@@ -75,42 +75,50 @@
                 return Math.sin(sampleNumber / (sampleFreq / tau))
             }
 
-            function playNotes({c, e, g}) {
+            function playNotes(notes) {
+                playSound(noteBuffer(notes));
+            }
+
+            function noteBuffer({c, e, g}) {
                 const volume = 0.5/(Math.max(1, !!c + !!e + !!g));
                 const seconds = 1;
                 const Ctone = 523.251;
                 const Etone = 659.255;
                 const Gtone = 783.991;
                 const numSamples = context.sampleRate * seconds;
-    
-                function* waveBuilder() {
-                    for (let i = 0; i < numSamples; i++)
-                        yield volume * ((!!c && sineWaveAt(i, Ctone))
+
+                var buffer = new Array(numSamples);
+                for (let i = 0; i < numSamples; i++){
+                    buffer[i] = volume * ((!!c && sineWaveAt(i, Ctone))
                                         + (!!e && sineWaveAt(i, Etone))
                                         + (!!g &&  sineWaveAt(i, Gtone)));
                 }
-    
-                playSound(Array.from(waveBuilder()));
+                return buffer;
             }
 
             function playNumber(number) {
+                playNotes(notesNumber(number));
+            }
+
+            function notesNumber(number) {
                 switch (number) {
-                    case 0: playNotes({c: true}); break;
-                    case 1: playNotes({e: true}); break;
-                    case 2: playNotes({g: true}); break;
-                    case 3: playNotes({c: true, e: true}); break;
-                    case 4: playNotes({c: true, g: true}); break;
-                    case 5: playNotes({c: true, g: true, e: true}); break;
+                    case 0: return {c: true};
+                    case 1: return {e: true};
+                    case 2: return {g: true};
+                    case 3: return {c: true, e: true};
+                    case 4: return {c: true, g: true};
+                    case 5: return {c: true, g: true, e: true};
                 }
             }
 
-            async function playTimeRaw(hours, minutes) {
-                const hourWrapped = hours % 6;
-                const minutesWrapped = Math.floor(minutes/10);
-                Promise.resolve()
-                    .then(() => playNumber(hourWrapped))
+            function playTimeRaw(hours, minutes) {
+                const hoursTune = notesNumber(hours % 6);
+                const minutesTune = notesNumber(Math.floor(minutes/10));
+                const tunez = [hoursTune, minutesTune].map(async (tune) => noteBuffer(tune));
+                Promise.all(tunez)
+                    .then(([hoursBuffer, minutesBuffer]) => {playSound(hoursBuffer); return minutesBuffer;})
                     .then(delay(1000))
-                    .then(() => playNumber(minutesWrapped));
+                    .then(playSound);
             }
         </script>
     </body>
