@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Tone Clock</title>
+        <style>
+            body {margin:0}
+            div.centered {
+                display: flex; justify-content: center; align-items: center; height: 100vh
+            }
+            input {font-size: 300%}
+            
+        </style>
+    </head>
+    <body>
+        <div class="centered">
+            <input type="button" id="play"
+                value="Play Time" />
+        </div>
+        <script>
+            const context = new AudioContext();
+            const delay = (ms) => () => new Promise((resolve) => 
+                        setTimeout(() => resolve(), ms));
+
+            window.addEventListener('DOMContentLoaded', () => {
+                const hash = window.location.hash.slice(1);
+                if (hash === 'learn') {
+                    var button = document.createElement('input')
+                    button.type = 'button';
+                    button.value = 'Cycle';
+                    button.addEventListener('click', () => {
+                        Promise.resolve()
+                            .then(() => playNumber(0))
+                            .then(delay(1000))
+                            .then(() => playNumber(1))
+                            .then(delay(1000))
+                            .then(() => playNumber(2))
+                            .then(delay(1000))
+                            .then(() => playNumber(3))
+                            .then(delay(1000))
+                            .then(() => playNumber(4))
+                            .then(delay(1000))
+                            .then(() => playNumber(5))
+                            .then(delay(1000));
+                    });
+                    document.getElementsByTagName('div')[0].appendChild(button);
+                }
+            });
+
+            document.getElementById('play').addEventListener('click', () => {
+                const date = new Date();
+                playTimeRaw(date.getHours(), date.getMinutes());
+            });
+
+            function playSound(arr) {
+                const context = new AudioContext();
+                const buf = Float32Array.from(arr);
+                const buffer = context.createBuffer(1, buf.length, context.sampleRate);
+                buffer.copyToChannel(buf, 0);
+                const source = context.createBufferSource();
+                const gainNode = context.createGain();
+                source.buffer = buffer;
+                source.connect(gainNode);
+                gainNode.connect(context.destination);
+                gainNode.gain.setValueAtTime(0.01, 0);
+                gainNode.gain.exponentialRampToValueAtTime(1, 0.5);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, 1);
+                source.start(0);
+            }
+
+            function sineWaveAt(sampleNumber, tone) {
+                const sampleFreq = context.sampleRate / tone;
+                const tau = Math.PI * 2;
+                return Math.sin(sampleNumber / (sampleFreq / tau))
+            }
+
+            function playNotes({c, e, g}) {
+                const volume = 0.5/(Math.max(1, !!c + !!e + !!g));
+                const seconds = 1;
+                const Ctone = 523.251;
+                const Etone = 659.255;
+                const Gtone = 783.991;
+                const numSamples = context.sampleRate * seconds;
+    
+                function* waveBuilder() {
+                    for (let i = 0; i < numSamples; i++)
+                        yield volume * ((!!c && sineWaveAt(i, Ctone))
+                                        + (!!e && sineWaveAt(i, Etone))
+                                        + (!!g &&  sineWaveAt(i, Gtone)));
+                }
+    
+                playSound(Array.from(waveBuilder()));
+            }
+
+            function playNumber(number) {
+                switch (number) {
+                    case 0: playNotes({c: true}); break;
+                    case 1: playNotes({e: true}); break;
+                    case 2: playNotes({g: true}); break;
+                    case 3: playNotes({c: true, e: true}); break;
+                    case 4: playNotes({c: true, g: true}); break;
+                    case 5: playNotes({c: true, g: true, e: true}); break;
+                }
+            }
+
+            async function playTimeRaw(hours, minutes) {
+                const hourWrapped = hours % 6;
+                const minutesWrapped = Math.floor(minutes/10);
+                Promise.resolve()
+                    .then(() => playNumber(hourWrapped))
+                    .then(delay(1000))
+                    .then(() => playNumber(minutesWrapped));
+            }
+        </script>
+    </body>
+</html>
